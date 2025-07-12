@@ -284,10 +284,3 @@ The wallet parses the payload, executes the requested method, and returns the re
     "status": "success"
   }
   ```
-
----
-
-**Note:**  
-- Replace `myapp` with your app’s actual scheme.
-- All requests and responses are delivered as URL-encoded JSON payloads.
-- The protocol is extensible; new methods can be added using the same
