@@ -41,167 +41,253 @@ The payload must include a `type` field to specify the method, a `callback_url` 
 - `signIn`
 - `signOut`
 
-#### Example Payloads
+#### Standardized Request and Response Examples
+
+All interactions between the native app and native wallet use a single deeplink endpoint:
+
+```
+nearwallet://bridge?payload=<url-encoded-json>
+```
+
+Every request from the native app MUST include a `callback_url` parameter, which is the app’s own scheme, e.g.:
+
+```
+myapp://bridge
+```
+
+The wallet parses the payload, executes the requested method, and returns the result to the app using the same callback URL and a URL-encoded JSON payload.
+
+---
 
 **Connect**
 
-Request:
-```json
-{
-  "type": "connect",
-  "dapp_url": "myapp://onSessionApproved",
-  "app_name": "MyApp",
-  "request_id": "xyz",
-  "callback_url": "myapp://onSessionApproved"
-}
-```
+- Request (Native App → Native Wallet):
 
-Response (to `callback_url`):
-```json
-{
-  "type": "connectResult",
-  "session_key": "abc123",
-  "accounts": [
-    {
-      "account_id": "myname.near",
-      "public_key": "ed25519:..."
-    }
-  ]
-}
-```
+  ```
+  nearwallet://bridge?payload=<url-encoded-json>
+  ```
+
+  Payload:
+  ```json
+  {
+    "type": "connect",
+    "app_name": "MyApp",
+    "request_id": "xyz",
+    "callback_url": "myapp://bridge"
+  }
+  ```
+
+- Response (Native Wallet → Native App):
+
+  ```
+  myapp://bridge?payload=<url-encoded-json>
+  ```
+
+  Payload:
+  ```json
+  {
+    "type": "connectResult",
+    "request_id": "xyz",
+    "session_key": "abc123",
+    "accounts": [
+      {
+        "account_id": "myname.near",
+        "public_key": "ed25519:..."
+      }
+    ]
+  }
+  ```
+
+---
 
 **signAndSendTransaction**
 
-Request:
-```json
-{
-  "type": "signAndSendTransaction",
-  "session_key": "abc123",
-  "transaction": { /* transaction object */ },
-  "request_id": "tx1",
-  "callback_url": "myapp://onTxComplete"
-}
-```
+- Request:
 
-Response (to `callback_url`):
-```json
-{
-  "type": "transactionResult",
-  "request_id": "tx1",
-  "status": "success",
-  "tx_hash": "XYZ"
-}
-```
+  ```
+  nearwallet://bridge?payload=<url-encoded-json>
+  ```
+
+  Payload:
+  ```json
+  {
+    "type": "signAndSendTransaction",
+    "session_key": "abc123",
+    "transaction": { /* transaction object */ },
+    "request_id": "tx1",
+    "callback_url": "myapp://bridge"
+  }
+  ```
+
+- Response:
+
+  ```
+  myapp://bridge?payload=<url-encoded-json>
+  ```
+
+  Payload:
+  ```json
+  {
+    "type": "transactionResult",
+    "request_id": "tx1",
+    "status": "success",
+    "tx_hash": "XYZ"
+  }
+  ```
+
+---
 
 **signAndSendTransactions**
 
-Request:
-```json
-{
-  "type": "signAndSendTransactions",
-  "session_key": "abc123",
-  "transactions": [ /* array of transaction objects */ ],
-  "request_id": "batch1",
-  "callback_url": "myapp://onMultiTxComplete"
-}
-```
+- Request:
 
-Response (to `callback_url`):
-```json
-{
-  "type": "multiTransactionResult",
-  "request_id": "batch1",
-  "status": "success",
-  "tx_hashes": ["tx1", "tx2"]
-}
-```
+  ```
+  nearwallet://bridge?payload=<url-encoded-json>
+  ```
+
+  Payload:
+  ```json
+  {
+    "type": "signAndSendTransactions",
+    "session_key": "abc123",
+    "transactions": [ /* array of transaction objects */ ],
+    "request_id": "batch1",
+    "callback_url": "myapp://bridge"
+  }
+  ```
+
+- Response:
+
+  ```
+  myapp://bridge?payload=<url-encoded-json>
+  ```
+
+  Payload:
+  ```json
+  {
+    "type": "multiTransactionResult",
+    "request_id": "batch1",
+    "status": "success",
+    "tx_hashes": ["tx1", "tx2"]
+  }
+  ```
+
+---
 
 **getAccounts**
 
-Request:
-```json
-{
-  "type": "getAccounts",
-  "session_key": "abc123",
-  "callback_url": "myapp://onAccounts"
-}
-```
+- Request:
 
-Response (to `callback_url`):
-```json
-{
-  "type": "accountsResult",
-  "accounts": [
-    {
-      "account_id": "user.near",
-      "public_key": "ed25519:..."
-    }
-  ]
-}
-```
+  ```
+  nearwallet://bridge?payload=<url-encoded-json>
+  ```
+
+  Payload:
+  ```json
+  {
+    "type": "getAccounts",
+    "session_key": "abc123",
+    "request_id": "acc1",
+    "callback_url": "myapp://bridge"
+  }
+  ```
+
+- Response:
+
+  ```
+  myapp://bridge?payload=<url-encoded-json>
+  ```
+
+  Payload:
+  ```json
+  {
+    "type": "accountsResult",
+    "request_id": "acc1",
+    "accounts": [
+      {
+        "account_id": "user.near",
+        "public_key": "ed25519:..."
+      }
+    ]
+  }
+  ```
+
+---
 
 **signIn**
 
-Request:
-```json
-{
-  "type": "signIn",
-  "session_key": "abc123",
-  "contract_id": "mycontract.near",
-  "method_names": ["callA", "callB"],
-  "callback_url": "myapp://onSignIn"
-}
-```
+- Request:
 
-Response (to `callback_url`):
-```json
-{
-  "type": "signInResult",
-  "status": "success",
-  "account_id": "user.near"
-}
-```
+  ```
+  nearwallet://bridge?payload=<url-encoded-json>
+  ```
+
+  Payload:
+  ```json
+  {
+    "type": "signIn",
+    "session_key": "abc123",
+    "contract_id": "mycontract.near",
+    "method_names": ["callA", "callB"],
+    "request_id": "signin1",
+    "callback_url": "myapp://bridge"
+  }
+  ```
+
+- Response:
+
+  ```
+  myapp://bridge?payload=<url-encoded-json>
+  ```
+
+  Payload:
+  ```json
+  {
+    "type": "signInResult",
+    "request_id": "signin1",
+    "status": "success",
+    "account_id": "user.near"
+  }
+  ```
+
+---
 
 **signOut**
 
-Request:
-```json
-{
-  "type": "signOut",
-  "session_key": "abc123",
-  "callback_url": "myapp://onSignOut"
-}
-```
+- Request:
 
-Response (to `callback_url`):
-```json
-{
-  "type": "signOutResult",
-  "status": "success"
-}
-```
+  ```
+  nearwallet://bridge?payload=<url-encoded-json>
+  ```
 
-### Transport
+  Payload:
+  ```json
+  {
+    "type": "signOut",
+    "session_key": "abc123",
+    "request_id": "signout1",
+    "callback_url": "myapp://bridge"
+  }
+  ```
 
-- Communication via deeplinks for native apps.
-- Communication via web messaging (e.g., postMessage) for web wallets.
-- All requests and responses use the same endpoint and event-based payloads.
-- Session keys are used for authentication and message integrity.
-- The `callback_url` parameter must be provided in every request and is used for delivering results to the originating application.
+- Response:
 
-### Example Flow
+  ```
+  myapp://bridge?payload=<url-encoded-json>
+  ```
 
-1. App opens wallet via deeplink or web messaging, sending a `connect` payload with a `callback_url`.
-2. Wallet displays session approval UI, user selects accounts.
-3. Wallet returns session key and account info to the provided `callback_url`.
-4. App requests transaction signing via a `signAndSendTransaction` payload with a `callback_url`.
-5. Wallet signs the transaction and sends it to the NEAR blockchain.
-6. Wallet returns the transaction result to the provided `callback_url`.
+  Payload:
+  ```json
+  {
+    "type": "signOutResult",
+    "request_id": "signout1",
+    "status": "success"
+  }
+  ```
 
-## Rationale
+---
 
-This protocol is designed to be flexible and extensible, using a single endpoint and event-based payloads. It supports both native and web wallets, and is compatible with the Wallet Selector layer. The use of a `callback_url` in every request ensures the native app receives the result of each operation, supporting robust communication and future extensibility.
-
-## Call for Feedback
-
-This is an initial draft. Feedback and suggestions from the NEAR developer community and infrastructure groups are welcome to refine and finalize the standard.
+**Note:**  
+- Replace `myapp` with your app’s actual scheme.
+- All requests and responses are delivered as URL-encoded JSON payloads.
+- The protocol is extensible; new methods can be added using the same
