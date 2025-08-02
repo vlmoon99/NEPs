@@ -128,7 +128,7 @@ The key word "CONDITIONAL" is to be interpreted as follows:
 
 ### 5.1. Supported Encryption Methods
 
-#### 5.1.1. AES-256-GCM (REQUIRED)
+#### 5.1.1. AES-256-GCM (RECOMMENDED)
 - **Key Length**: 256 bits
 - **IV Length**: 96 bits (12 bytes)
 - **Tag Length**: 128 bits (16 bytes)
@@ -148,7 +148,7 @@ The key word "CONDITIONAL" is to be interpreted as follows:
 
 ### 5.2. Key Exchange Requirements
 
-#### 5.2.1. Elliptic Curve Diffie-Hellman (REQUIRED)
+#### 5.2.1. Elliptic Curve Diffie-Hellman (RECOMMENDED)
 - **Curves**: P-256 (REQUIRED), P-384 (RECOMMENDED), X25519 (OPTIONAL)
 - **Key Derivation**: HKDF-SHA256
 - **Ephemeral Keys**: New key pair for each session
