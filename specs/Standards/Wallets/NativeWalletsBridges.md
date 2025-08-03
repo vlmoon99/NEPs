@@ -165,11 +165,17 @@ The key word "CONDITIONAL" is to be interpreted as follows:
 ### 6.1. Session Initialization Protocol
 
 #### 6.1.1. Deeplink Structure
+
+Wallet providers are RECOMMENDED to use this deeplink structure :
+
 ```
 nearwallet://bridge/v1?payload=<url-encoded-json>
 ```
 
 #### 6.1.2. Session Initiation Request
+
+Wallet providers MAY use this session init req structure :
+
 ```json
 {
   "version": "1.0",
@@ -180,7 +186,7 @@ nearwallet://bridge/v1?payload=<url-encoded-json>
   "session_config": {
     "encryption_method": "aes256_gcm|chacha20_poly1305|custom",
     "key_exchange_method": "ecdh_p256|ecdh_p384|x25519",
-    "websocket_endpoint_preference": "wss://preferred-endpoint.com/ws"
+    "websocket_endpoint": "wss://preferred-endpoint.com/ws"
   },
   "client_public_key": "base64-encoded-ephemeral-public-key",
   "callback_scheme": "myapp://bridge/v1",
@@ -191,6 +197,9 @@ nearwallet://bridge/v1?payload=<url-encoded-json>
 ```
 
 #### 6.1.3. Session Establishment Response
+
+Wallet providers MAY use this session init resp structure :
+
 ```json
 {
   "version": "1.0",
@@ -223,29 +232,149 @@ nearwallet://bridge/v1?payload=<url-encoded-json>
 
 ### 7.1. Backend Infrastructure
 
-Wallet providers MUST implement the following backend functions:
+Wallet providers MAY implement the following backend functions: 
 
 **Function**: `registerSession(sessionInitRequest: SessionInitRequest)`
 - **Purpose**: Register a new session with the wallet provider backend
-- **Input**: Session initialization request from client
-- **Output**: `{ sessionId: string, websocketEndpoint: string, walletPublicKey: string }`
-- **Notes**: Generate session ID, validate request, return connection details
+- **Input**: 
+  ```typescript
+  {
+    "version": "1.0",
+    "type": "session_init",
+    "app_id": "com.example.myapp",
+    "app_name": "MyApp",
+    "platform": "ios|android|web",
+    "session_config": {
+      "encryption_method": "aes256_gcm|chacha20_poly1305|custom",
+      "key_exchange_method": "ecdh_p256|ecdh_p384|x25519",
+      "websocket_endpoint": "wss://preferred-endpoint.com/ws"
+    },
+    "client_public_key": "base64-encoded-ephemeral-public-key",
+    "callback_scheme": "myapp://bridge/v1",
+    "request_id": "unique-request-identifier",
+    "timestamp": 1645123456789,
+    "signature": "base64-encoded-signature"
+  }
+  ```
+- **Output**: 
+  ```typescript
+  {
+    "version": "1.0",
+    "type": "session_established",
+    "request_id": "unique-request-identifier",
+    "session_id": "unique-session-identifier",
+    "wallet_provider_id": "provider.near",
+    "websocket_endpoint": "wss://wallet-backend.provider.near/ws",
+    "session_config": {
+      "encryption_method": "aes256_gcm",
+      "key_exchange_method": "ecdh_p256",
+      "session_duration": 3600,
+      "heartbeat_interval": 30
+    },
+    "wallet_public_key": "base64-encoded-wallet-public-key",
+    "shared_secret": "base64-encoded-derived-shared-secret",
+    "accounts": [
+      {
+        "account_id": "user.near",
+        "public_key": "ed25519:...",
+        "permissions": ["view_account", "sign_transactions"]
+      }
+    ],
+    "timestamp": 1645123456790,
+    "signature": "base64-encoded-signature"
+  }
+  ```
+- **Logic**: Validate request signature, generate unique session ID, create WebSocket endpoint, store session data with expiration, return connection details
 
 **Function**: `validateSession(sessionId: string, messageSignature: string)`
 - **Purpose**: Validate session and message authenticity
 - **Input**: 
-  - `sessionId`: Session identifier
-  - `messageSignature`: HMAC signature of message
-- **Output**: `boolean` (session valid/invalid)
-- **Notes**: Check session expiration, verify signature
+  ```typescript
+  {
+    sessionId: "sess_def456",
+    messageSignature: "hmac_sha256_signature_base64"
+  }
+  ```
+- **Output**: 
+  ```typescript
+  {
+    valid: true,
+    accountId: "user.near",
+    expiresAt: 1691238167890,
+    permissions: ["sign_transactions", "view_account"]
+  }
+  ```
+- **Logic**: Check session exists and not expired, verify HMAC signature using session key, return validation result with session details
 
 **Function**: `broadcastEvent(sessionId: string, event: Event)`
 - **Purpose**: Broadcast event to connected client
 - **Input**: 
-  - `sessionId`: Target session identifier
-  - `event`: Event data to broadcast
-- **Output**: `boolean` (event sent successfully)
-- **Notes**: Encrypt event payload before sending
+  ```typescript
+  {
+    sessionId: "sess_def456",
+    event: {
+      type: "transaction_completed",
+      data: {
+        transactionId: "tx_ghi789",
+        status: "success",
+        blockHeight: 150000001
+      },
+      timestamp: 1691234567890
+    }
+  }
+  ```
+- **Output**: 
+  ```typescript
+  {
+    sent: true,
+    messageId: "msg_jkl012",
+    queuedAt: 1691234567895
+  }
+  ```
+- **Logic**: Encrypt event payload using session key, send via WebSocket to client, return delivery confirmation and message ID
+
+**Function**: `getSessionInfo(sessionId: string)`
+- **Purpose**: Retrieve session information and status
+- **Input**: 
+  ```typescript
+  "sess_def456"
+  ```
+- **Output**: 
+  ```typescript
+  {
+    sessionId: "sess_def456",
+    appId: "myapp.com",
+    accountId: "user.near",
+    status: "active",
+    createdAt: 1691234567890,
+    expiresAt: 1691238167890,
+    lastActivity: 1691234600000
+  }
+  ```
+- **Logic**: Lookup session in storage, return session metadata including status and timing information
+
+**Function**: `terminateSession(sessionId: string, reason?: string)`
+- **Purpose**: Terminate active session and cleanup resources
+- **Input**: 
+  ```typescript
+  {
+    sessionId: "sess_def456",
+    reason: "user_logout" // optional: "timeout", "error", "user_logout"
+  }
+  ```
+- **Output**: 
+  ```typescript
+  {
+    terminated: true,
+    finalEvent: {
+      type: "session_terminated",
+      reason: "user_logout",
+      timestamp: 1691234567890
+    }
+  }
+  ```
+- **Logic**: Close WebSocket connection, clear session data from storage, send final termination event to client
+
 
 ### 7.2. Client API Documentation Requirements
 
@@ -257,8 +386,7 @@ Wallet providers MUST provide the following information to developers:
   "wallet_provider_id": "provider.near",
   "supported_platforms": ["ios", "android", "web"],
   "websocket_endpoint": "wss://wallet-backend.provider.near/ws",
-  "api_documentation_url": "https://provider.near/docs/api",
-  "sdk_download_url": "https://provider.near/sdk"
+  "api_documentation_url": "https://provider.near/docs/api"
 }
 ```
 
@@ -296,97 +424,265 @@ Wallet providers MUST provide:
 4. **Testing Tools**: Utilities for testing wallet connectivity
 5. **Support**: Developer support channels and resources
 
-### 7.4. Security Requirements
-
-**Function**: `validateCertificate(certificate: string)`
-- **Purpose**: Validate TLS certificate for secure connections
-- **Input**: Certificate data
-- **Output**: `boolean` (certificate valid/invalid)
-- **Notes**: Check certificate chain and revocation status
-
-**Function**: `encryptMessage(message: string, encryptionKey: string)`
-- **Purpose**: Encrypt message payload for secure transmission
-- **Input**: 
-  - `message`: Plaintext message
-  - `encryptionKey`: Base64-encoded encryption key
-- **Output**: `{ nonce: string, ciphertext: string }`
-- **Notes**: Use AES-256-GCM with random nonce
-
-**Function**: `decryptMessage(encryptedData: object, encryptionKey: string)`
-- **Purpose**: Decrypt message payload
-- **Input**: 
-  - `encryptedData`: `{ nonce: string, ciphertext: string }`
-  - `encryptionKey`: Base64-encoded encryption key
-- **Output**: `string` (decrypted message)
-- **Notes**: Verify authentication tag during decryption
 
 ## 8. Client SDK Requirements
 
 ### 8.1. Core Interface Functions
 
-Client SDKs MUST implement the following functions:
+Wallet providers MUST implement the following client functions (they may use their own data structures, but the function signatures must remain the same):
 
 **Function**: `initializeSession(config: SessionConfig)`
 - **Purpose**: Establish connection with wallet provider
 - **Input**: 
-  - `config.appId`: Application identifier
-  - `config.appName`: Application name
-  - `config.walletId`: Target wallet provider (optional)
-  - `config.timeout`: Connection timeout in seconds (default: 30)
-- **Output**: `{ sessionId: string, accounts: Account[], websocketEndpoint: string }`
-- **Notes**: Generate key pair, send deeplink, establish WebSocket connection
+  ```typescript
+  {
+    appId: "myapp.com",
+    appName: "My DApp",
+    walletId: "mynearwallet", 
+  }
+  ```
+- **Output**: 
+  ```typescript
+  {
+    sessionId: "sess_abc123",
+    accounts: [
+      { accountId: "user.near", publicKey: "ed25519:..." }
+    ],
+    websocketEndpoint: "wss://wallet.near.org/ws"
+  }
+  ```
+- **Logic**: Generate key pair, send deeplink to wallet, establish WebSocket connection, return session details
 
 **Function**: `closeSession()`
 - **Purpose**: Terminate wallet connection
 - **Input**: None
-- **Output**: `boolean` (session closed successfully)
-- **Notes**: Close WebSocket connection, cleanup session data
+- **Output**: 
+  ```typescript
+  true // boolean: session closed successfully
+  ```
+- **Logic**: Close WebSocket connection, cleanup session data, notify wallet of disconnection
 
 **Function**: `signAndSendTransaction(transaction: Transaction)`
 - **Purpose**: Sign and submit transaction to blockchain
 - **Input**: 
-  - `transaction.receiverId`: Target account ID
-  - `transaction.actions`: Array of transaction actions
-- **Output**: `{ transactionId: string, status: string }`
-- **Notes**: Send transaction request, return immediately, listen for events
+  ```typescript
+  {
+    receiverId: "contract.near",
+    actions: [
+      {
+        type: "FunctionCall",
+        params: {
+          methodName: "transfer",
+          args: { amount: "1000000000000000000000000" },
+          gas: "30000000000000",
+          deposit: "0"
+        }
+      }
+    ]
+  }
+  ```
+- **Output**: 
+  ```typescript
+  {
+    transactionId: "tx_def456",
+    status: "pending"
+  }
+  ```
+- **Logic**: Send transaction request to wallet, wallet signs and broadcasts to network, return transaction ID immediately
 
-**Function**: `getAccounts()`
-- **Purpose**: Retrieve connected wallet accounts
+**Function**: `sendTransaction(transaction: Transaction)`
+- **Purpose**: Send pre-signed transaction to blockchain
+- **Input**: 
+  ```typescript
+  {
+    signedTransaction: "encoded_signed_transaction",
+    receiverId: "contract.near"
+  }
+  ```
+- **Output**: 
+  ```typescript
+  {
+    transactionId: "tx_ghi789",
+    status: "pending"
+  }
+  ```
+- **Logic**: Submit already signed transaction to network, return transaction ID and listen for completion events
+
+**Function**: `signTransaction(transaction: Transaction)`
+- **Purpose**: Sign transaction without sending it to the network
+- **Input**: 
+  ```typescript
+  {
+    receiverId: "contract.near",
+    actions: [
+      {
+        type: "Transfer",
+        params: { deposit: "1000000000000000000000000" }
+      }
+    ]
+  }
+  ```
+- **Output**: 
+  ```typescript
+  {
+    signedTransaction: "encoded_signed_transaction",
+    signature: "ed25519:signature",
+    publicKey: "ed25519:public_key"
+  }
+  ```
+- **Logic**: Request wallet to sign transaction, return signed transaction data without broadcasting to network
+
+**Function**: `signDelegateAction(delegateAction: DelegateAction)`
+- **Purpose**: Sign meta-transaction (NEP-366) without relaying
+- **Input**: 
+  ```typescript
+  {
+    sender_id: "user.near",
+    receiver_id: "contract.near",
+    actions: [
+      {
+        type: "FunctionCall",
+        params: {
+          methodName: "mint_nft",
+          args: { token_id: "123" },
+          gas: "30000000000000",
+          deposit: "0"
+        }
+      }
+    ],
+    nonce: 12345,
+    max_block_height: 150000000,
+    public_key: "ed25519:user_public_key"
+  }
+  ```
+- **Output**: 
+  ```typescript
+  {
+    signedDelegateAction: {
+      delegate_action: { /* input data */ },
+      signature: "ed25519:delegate_signature"
+    },
+    signature: "ed25519:delegate_signature"
+  }
+  ```
+- **Logic**: Wallet signs DelegateAction structure, returns signed meta-transaction that application can submit via chosen relayer
+
+**Function**: `signMessage(params: SignMessageParams)`
+- **Purpose**: Sign arbitrary message for authentication (NEP-413)
+- **Input**: 
+  ```typescript
+  {
+    message: "Login to MyApp",
+    recipient: "myapp.com",
+    nonce: new Uint8Array(32),
+    callbackUrl: "https://myapp.com/auth",
+    state: "auth_state_token"
+  }
+  ```
+- **Output**: 
+  ```typescript
+  {
+    accountId: "user.near",
+    publicKey: "ed25519:user_public_key",
+    signature: "encoded_signature",
+    state: "auth_state_token"
+  }
+  ```
+- **Logic**: Wallet signs message with NEP-413 format (prepends tag, hashes with SHA256), returns signature for off-chain authentication
+
+**Function**: `verifySignature(signature: string, message: string, publicKey: string)`
+- **Purpose**: Verify signature locally without network calls
+- **Input**: 
+  ```typescript
+  {
+    signature: "encoded_signature",
+    message: "original_message_or_hash",
+    publicKey: "ed25519:public_key"
+  }
+  ```
+- **Output**: 
+  ```typescript
+  {
+    valid: true,
+    error: null
+  }
+  ```
+- **Logic**: Perform local cryptographic verification of signature against message and public key
+
+**Function**: `getAccountInfo(accountId?: string)`
+- **Purpose**: Get account information from connected wallet
+- **Input**: 
+  ```typescript
+  "user.near"
+  ```
+- **Output**: 
+  ```typescript
+  {
+    accountId: "user.near",
+    publicKeys: ["ed25519:key1", "ed25519:key2"],
+    balance: "1500000000000000000000000"
+  }
+  ```
+- **Logic**: Query wallet for account details, return account information needed for transaction preparation
+
+**Function**: `getNetworkInfo()`
+- **Purpose**: Get current network configuration
 - **Input**: None
-- **Output**: `Account[]` (array of account information)
-- **Notes**: Return account IDs, public keys, and balances
-
-### 8.2. Event Handling Functions
+- **Output**: 
+  ```typescript
+  {
+    networkId: "mainnet",
+    nodeUrl: "https://rpc.mainnet.near.org",
+    blockHeight: 150000000
+  }
+  ```
+- **Logic**: Retrieve current network configuration from wallet, used for setting max_block_height in DelegateActions
 
 **Function**: `addEventListener(eventType: string, callback: Function)`
 - **Purpose**: Register event listener for wallet events
 - **Input**: 
-  - `eventType`: Event type (e.g., "transaction_completed", "account_updated")
-  - `callback`: Function to handle event
+  ```typescript
+  {
+    eventType: "transaction_completed",
+    callback: (event) => console.log("Transaction done:", event.transactionId)
+  }
+  ```
 - **Output**: None
-- **Notes**: Store callback for event type
+- **Logic**: Store callback function for specified event type, invoke when events are received via WebSocket
 
 **Function**: `removeEventListener(eventType: string, callback: Function)`
 - **Purpose**: Remove event listener
 - **Input**: 
-  - `eventType`: Event type
-  - `callback`: Function to remove
+  ```typescript
+  {
+    eventType: "transaction_completed",
+    callback: previouslyRegisteredFunction
+  }
+  ```
 - **Output**: None
-- **Notes**: Remove callback from event type
+- **Logic**: Remove specific callback function from event type listeners
 
 **Function**: `isConnected()`
 - **Purpose**: Check if wallet connection is active
 - **Input**: None
-- **Output**: `boolean` (connection status)
-- **Notes**: Check WebSocket connection state
-
-### 8.3. Error Handling
+- **Output**: 
+  ```typescript
+  true // boolean: connection status
+  ```
+- **Logic**: Check WebSocket connection state and session validity
 
 **Function**: `handleError(error: Error)`
 - **Purpose**: Process and handle wallet connection errors
-- **Input**: Error object with code and message
+- **Input**: 
+  ```typescript
+  {
+    code: "WALLET_NOT_FOUND",
+    message: "Wallet application not installed",
+    details: { walletId: "mynearwallet" }
+  }
+  ```
 - **Output**: None
-- **Notes**: Log error, notify user, attempt recovery if possible
+- **Logic**: Log error details, notify user with appropriate message, attempt automatic recovery if possible (e.g., reconnection)
 
 **Common Error Types**:
 - `WALLET_NOT_INSTALLED`: Wallet app not found on device
@@ -395,11 +691,165 @@ Client SDKs MUST implement the following functions:
 - `INVALID_TRANSACTION`: Transaction format or validation error
 - `USER_REJECTED`: User rejected transaction in wallet
 
+### 8.2. Cryptographic Interface Requirements
+
+Wallet providers are RECOMMENDED to implement the following cryptographic functions. While the specific cryptographic algorithms and implementations are left to each provider’s discretion, they MUST implement a function that securely encrypts the session and ensures that the session is valid and the user is verified. The interface contract for this function MUST be maintained :
+
+**Function**: `encryptMessage(message: string, encryptionKey: string)`
+- **Purpose**: Encrypt message payload for secure transmission between client and wallet
+- **Input**: 
+  ```typescript
+  {
+    message: string, // Plain text message to encrypt
+    encryptionKey: string // Encryption key in provider-specific format
+  }
+  ```
+- **Output**: 
+  ```typescript
+  {
+    encryptedPayload: string, // Encrypted message in provider-specific format
+    metadata: object // Any additional data needed for decryption (e.g., nonce, IV)
+  }
+  ```
+- **Logic**: Encrypt message using wallet provider's chosen encryption method, return encrypted payload with necessary metadata for decryption
+
+**Function**: `decryptMessage(encryptedData: object, encryptionKey: string)`
+- **Purpose**: Decrypt message payload from client
+- **Input**: 
+  ```typescript
+  {
+    encryptedData: {
+      encryptedPayload: string, // Encrypted message
+      metadata: object // Decryption metadata from encryptMessage
+    },
+    encryptionKey: string // Decryption key in provider-specific format
+  }
+  ```
+- **Output**: 
+  ```typescript
+  string // Decrypted plain text message
+  ```
+- **Logic**: Extract encrypted payload and metadata, decrypt using wallet provider's method, verify message integrity, return plain text
+
+**Function**: `generateSessionKeys()`
+- **Purpose**: Generate cryptographic key material for secure session
+- **Input**: None
+- **Output**: 
+  ```typescript
+  {
+    publicKey: string, // Public key in provider-specific format
+    privateKey: string, // Private key in provider-specific format  
+    keyMetadata: object // Additional key information (algorithm, curve, etc.)
+  }
+  ```
+- **Logic**: Generate cryptographic key pair using wallet provider's preferred algorithm and parameters
+
+**Function**: `establishSharedSecret(privateKey: string, peerPublicKey: string)`
+- **Purpose**: Establish shared encryption key with communication peer
+- **Input**: 
+  ```typescript
+  {
+    privateKey: string, // Own private key
+    peerPublicKey: string // Peer's public key
+  }
+  ```
+- **Output**: 
+  ```typescript
+  {
+    sharedSecret: string, // Derived shared secret
+    encryptionKey: string, // Key for message encryption/decryption
+    keyDerivationInfo: object // Metadata about key derivation method
+  }
+  ```
+- **Logic**: Perform key exchange using wallet provider's chosen method, derive encryption keys from shared secret
+
+**Function**: `signMessage(message: string, privateKey: string)`
+- **Purpose**: Create cryptographic signature for message authentication
+- **Input**: 
+  ```typescript
+  {
+    message: string, // Message to sign
+    privateKey: string // Signing key
+  }
+  ```
+- **Output**: 
+  ```typescript
+  {
+    signature: string, // Digital signature
+    algorithm: string, // Signature algorithm used
+    publicKey: string // Corresponding public key for verification
+  }
+  ```
+- **Logic**: Create digital signature using wallet provider's signature algorithm, return signature with verification information
+
+**Function**: `verifySignature(message: string, signature: string, publicKey: string)`
+- **Purpose**: Verify message signature authenticity
+- **Input**: 
+  ```typescript
+  {
+    message: string, // Original message
+    signature: string, // Signature to verify
+    publicKey: string // Signer's public key
+  }
+  ```
+- **Output**: 
+  ```typescript
+  {
+    valid: boolean, // Signature verification result
+    algorithm: string, // Algorithm used for verification
+    details: object // Additional verification information
+  }
+  ```
+- **Logic**: Verify signature using wallet provider's verification method, return validation result
+
+### 8.3. Cryptographic Implementation Guidelines
+
+#### Security Requirements
+- All cryptographic operations MUST use industry-standard, well-vetted algorithms
+- Key generation MUST use cryptographically secure random number generators
+- Encryption MUST provide both confidentiality and authentication
+- Key exchange MUST provide forward secrecy where possible
+
+#### Algorithm Flexibility
+- Wallet providers MAY choose their preferred cryptographic algorithms
+- Common acceptable choices include:
+  - **Symmetric Encryption**: AES-256-GCM, ChaCha20-Poly1305, XSalsa20-Poly1305
+  - **Key Exchange**: ECDH (P-256, P-384), X25519, X448
+  - **Signatures**: Ed25519, ECDSA (P-256), RSA-PSS
+  - **Key Derivation**: HKDF, PBKDF2, Argon2
+
+#### Interoperability
+- Wallet providers MUST document their chosen cryptographic methods
+- Client applications MUST support the cryptographic methods of target wallets
+- Cross-wallet compatibility is achieved through standardized interface contracts, not algorithm standardization
+
+#### Migration and Upgrades
+- Wallet providers SHOULD support algorithm negotiation for future upgrades
+- Cryptographic parameters SHOULD be versioned for backward compatibility
+- Migration paths SHOULD be planned for deprecated algorithms
+
+### 8.4. Security Considerations
+
+#### Key Management
+- Private keys MUST be stored securely and never transmitted
+- Session keys SHOULD be ephemeral and rotated regularly
+- Key derivation MUST be deterministic and reproducible
+
+#### Message Protection
+- All sensitive messages MUST be encrypted in transit
+- Message integrity MUST be verified before processing
+- Replay protection SHOULD be implemented using nonces or timestamps
+
+#### Implementation Security
+- Cryptographic implementations SHOULD be reviewed by security experts
+- Side-channel attacks MUST be considered in implementation
+- Constant-time operations SHOULD be used where applicable
+
 ## 9. Message Format Specification
 
 ### 9.1. WebSocket Message Structure
 
-All WebSocket messages MUST follow this format:
+All WebSocket messages are RECOMMENDED to follow this format:
 
 ```json
 {
@@ -445,34 +895,6 @@ All WebSocket messages MUST follow this format:
    - [ ] Integration guides
    - [ ] Security best practices
    - [ ] Troubleshooting guides
-
-### 10.2. Client Application Integration
-
-**Function**: `connectToWallet(walletProviderId: string)`
-- **Purpose**: Connect to specific wallet provider
-- **Input**: Wallet provider identifier
-- **Output**: `{ connected: boolean, sessionId: string }`
-- **Notes**: Initialize session with specified wallet
-
-**Function**: `sendTransaction(transaction: Transaction)`
-- **Purpose**: Send transaction to connected wallet
-- **Input**: Transaction object
-- **Output**: `{ transactionId: string, status: string }`
-- **Notes**: Submit transaction and listen for completion events
-
-### 10.3. Testing and Validation
-
-**Function**: `testWalletConnection(walletProviderId: string)`
-- **Purpose**: Test connectivity with wallet provider
-- **Input**: Wallet provider identifier
-- **Output**: `{ success: boolean, latency: number, errors: string[] }`
-- **Notes**: Verify session establishment and basic communication
-
-**Function**: `validateTransaction(transaction: Transaction)`
-- **Purpose**: Validate transaction format before sending
-- **Input**: Transaction object
-- **Output**: `{ valid: boolean, errors: string[] }`
-- **Notes**: Check transaction structure and required fields
 
 ## 11. Conclusion
 
