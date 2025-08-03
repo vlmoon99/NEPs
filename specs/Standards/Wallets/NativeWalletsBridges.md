@@ -429,7 +429,7 @@ Wallet providers MUST provide:
 
 ### 8.1. Core Interface Functions
 
-Wallet providers MUST implement the following client functions (they may use their own data structures, but the function signatures must remain the same):
+Wallet providers MUST implement the following client functions. They may use their own data structures, but the function signatures MUST remain the same. These functions SHOULD optionally support two types of usage: via WebSocket and via raw deeplinks (except for event listeners). When using deeplinks, the URL MUST be less than or equal to 2000 characters. If this limit is exceeded, only the WebSocket method MUST be used :
 
 **Function**: `initializeSession(config: SessionConfig)`
 - **Purpose**: Establish connection with wallet provider
@@ -877,10 +877,10 @@ All WebSocket messages are RECOMMENDED to follow this format:
    - [ ] Cryptographic service provider
 
 2. **Security Implementation**:
-   - [ ] TLS 1.2+ with certificate validation
-   - [ ] AES-256-GCM encryption
-   - [ ] ECDH P-256 key exchange
-   - [ ] HMAC-SHA256 message authentication
+   - [ ] Certificate validation
+   - [ ] Messages encryption
+   - [ ] Key exchange
+   - [ ] Message authentication
    - [ ] Session timeout and cleanup
 
 3. **Client SDK Development**:
