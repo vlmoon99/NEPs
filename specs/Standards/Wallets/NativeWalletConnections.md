@@ -1,4 +1,4 @@
-# Native Wallets Connection
+# Native wallet connections
 
 ## Summary
 
@@ -6,7 +6,7 @@ Standard interface for connecting native wallets to native apps and web apps.
 
 ## Motivation
 
-Currently, there is no standardized approach for connecting native wallets to native apps. Nowadays, each NEAR wallet tries to create its own solution, which makes it harder for native apps and web apps to connect to native wallets. This new standard solves this problem. 
+Currently, there is no standardized approach for connecting native wallets to native apps. Nowadays, each NEAR wallet tries to create their own solutions, which makes it harder for native apps and web apps to connect to native wallets. This new standard solves this problem. 
 
 
 ## Rationale and alternatives
@@ -21,7 +21,7 @@ This standard provides the necessary interface and bindings for NEAR native wall
 
 ## Specification
 
-Native wallet connections use a simple stateless architecture based on request IDs and HTTP requests. This approach eliminates the complexity of WebSocket connections while providing secure transaction signing capabilities. The process involves a wallet backend that stores signing requests and returns signed data via simple GET requests.
+Native wallet connections use a simple stateless architecture based on request IDs and HTTP requests. The process involves a wallet backend that stores signing requests and returns signed data via simple GET requests.
 
 ### Architecture Overview
 
@@ -30,7 +30,7 @@ The connection flow consists of five simple steps:
 1. **POST to Wallet Backend** - Submit transaction data and receive a request ID
 2. **Deeplink Redirect** - Redirect to wallet app with request ID and callback URL
 3. **User Approval** - User reviews and approves/rejects in wallet app
-4. **Callback Redirect** - Return to app with request ID in callback URL
+4. **Callback Redirect** - Return to app via callback URL
 5. **GET from Wallet Backend** - Retrieve signed transaction data using request ID
 
 ### Core Principles
@@ -39,7 +39,6 @@ The connection flow consists of five simple steps:
 - **Simple HTTP Requests**: Use standard GET/POST operations
 - **Request ID Based**: All operations reference a unique request ID
 - **Wallet Backend Responsibility**: Wallet providers maintain their own backend infrastructure
-- **Transaction Execution**: Wallet can optionally execute transactions with `wait_until = TRANSACTION_INCLUDED`
 
 ### Methods
 
@@ -63,6 +62,7 @@ interface SignTransactionParams {
 
 interface SignTransactionResponse {
   requestId: string;
+  deeplinkUrl: string;
 }
 
 interface SignTransactionResult {
@@ -90,6 +90,7 @@ interface GetAccountsParams {
 
 interface GetAccountsResponse {
   requestId: string;
+  deeplinkUrl: string;
 }
 
 interface GetAccountsResult {
@@ -110,7 +111,7 @@ Sign a message for a specific recipient using the user's NEAR account (NEP-0413)
 interface SignMessageParams {
   message: string; // The message to be signed
   recipient: string; // The recipient to whom the message is destined (e.g. "alice.near" or "myapp.com")
-  nonce: Uint8Array; // A 32-byte nonce that uniquely identifies this message
+  nonce: Uint8Array; // A 32-byte nonce that ensures message uniqueness
   callbackUrl?: string;
   state?: string;
   metadata?: {
@@ -122,6 +123,7 @@ interface SignMessageParams {
 
 interface SignMessageResponse {
   requestId: string;
+  deeplinkUrl: string;
 }
 
 interface SignedMessage {
@@ -159,6 +161,7 @@ interface SignMetaTransactionParams {
 
 interface SignMetaTransactionResponse {
   requestId: string;
+  deeplinkUrl: string;
 }
 
 interface SignMetaTransactionResult {
@@ -194,7 +197,7 @@ Wallet providers MUST implement a simple backend with these endpoints:
 ```json
 {
   "requestId": "unique-request-id",
-  "deeplinkUrl": "nearwallet://sign-transaction?requestId=unique-request-id&callback=myapp://wallet-callback"
+  "deeplinkUrl": "nearwallet://native-bridge?requestId=unique-request-id&callback=myapp://wallet-callback"
 }
 ```
 
@@ -228,7 +231,7 @@ Wallet providers MUST implement a simple backend with these endpoints:
 ```json
 {
   "requestId": "unique-request-id",
-  "deeplinkUrl": "nearwallet://get-accounts?requestId=unique-request-id&callback=myapp://wallet-callback"
+  "deeplinkUrl": "nearwallet://native-bridge?requestId=unique-request-id&callback=myapp://wallet-callback"
 }
 ```
 
@@ -268,7 +271,7 @@ Wallet providers MUST implement a simple backend with these endpoints:
 ```json
 {
   "requestId": "unique-request-id",
-  "deeplinkUrl": "nearwallet://sign-message?requestId=unique-request-id&callback=myapp://wallet-callback"
+  "deeplinkUrl": "nearwallet://native-bridge?requestId=unique-request-id&callback=myapp://wallet-callback"
 }
 ```
 
@@ -323,7 +326,7 @@ Wallet providers MUST implement a simple backend with these endpoints:
 ```json
 {
   "requestId": "unique-request-id",
-  "deeplinkUrl": "nearwallet://sign-meta-transaction?requestId=unique-request-id&callback=myapp://wallet-callback"
+  "deeplinkUrl": "nearwallet://native-bridge?requestId=unique-request-id&callback=myapp://wallet-callback"
 }
 ```
 
