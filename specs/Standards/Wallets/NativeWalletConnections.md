@@ -48,7 +48,6 @@ Sign a regular NEAR transaction with optional execution.
 
 ```ts
 interface SignTransactionParams {
-  // Encoded Transaction via transactions.Transaction.encode()
   transaction: Uint8Array;
   callbackUrl: string;
   // Optional: if true, wallet will execute the transaction, otherwise return signed transaction
