@@ -79,12 +79,27 @@ interface SignTransactionResult {
 Retrieve available accounts from wallet (for transaction construction).
 
 ```ts
+interface GetAccountsParams {
+  callbackUrl: string;
+  metadata?: {
+    appName: string;
+    description?: string;
+    iconUrl?: string;
+  };
+}
+
+interface GetAccountsResponse {
+  requestId: string;
+}
+
+interface GetAccountsResult {
+  accounts: Array<Account>;
+}
+
 interface Account {
   accountId: string;
   publicKey: string;
 }
-
-type GetAccountsResponse = Array<Account>;
 ```
 
 #### `signMessage`
@@ -155,9 +170,6 @@ interface SignMetaTransactionResult {
 }
 ```
 
-
-
-
 ### Wallet Backend Requirements
 
 Wallet providers MUST implement a simple backend with these endpoints:
@@ -181,7 +193,8 @@ Wallet providers MUST implement a simple backend with these endpoints:
 **Response:**
 ```json
 {
-  "requestId": "unique-request-id"
+  "requestId": "unique-request-id",
+  "deeplinkUrl": "nearwallet://sign-transaction?requestId=unique-request-id&callback=myapp://wallet-callback"
 }
 ```
 
@@ -197,7 +210,29 @@ Wallet providers MUST implement a simple backend with these endpoints:
 }
 ```
 
-#### `GET /api/v1/accounts`
+#### `POST /api/v1/accounts`
+
+**Request Body:**
+```json
+{
+  "callbackUrl": "myapp://wallet-callback",
+  "metadata": {
+    "appName": "MyApp",
+    "description": "Get available accounts",
+    "iconUrl": "https://myapp.com/icon.png"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "requestId": "unique-request-id",
+  "deeplinkUrl": "nearwallet://get-accounts?requestId=unique-request-id&callback=myapp://wallet-callback"
+}
+```
+
+#### `GET /api/v1/accounts/{requestId}`
 
 **Response:**
 ```json
@@ -232,7 +267,8 @@ Wallet providers MUST implement a simple backend with these endpoints:
 **Response:**
 ```json
 {
-  "requestId": "unique-request-id"
+  "requestId": "unique-request-id",
+  "deeplinkUrl": "nearwallet://sign-message?requestId=unique-request-id&callback=myapp://wallet-callback"
 }
 ```
 
@@ -286,7 +322,8 @@ Wallet providers MUST implement a simple backend with these endpoints:
 **Response:**
 ```json
 {
-  "requestId": "unique-request-id"
+  "requestId": "unique-request-id",
+  "deeplinkUrl": "nearwallet://sign-meta-transaction?requestId=unique-request-id&callback=myapp://wallet-callback"
 }
 ```
 
@@ -302,136 +339,3 @@ Wallet providers MUST implement a simple backend with these endpoints:
 }
 ```
 
-#### `POST /api/v1/accounts`
-
-Get available accounts for transaction construction.
-
-**Response:**
-```json
-{
-  "requestId": "session-id",
-  "accounts": [
-    {
-      "accountId": "user.near",
-      "publicKey": "ed25519:..."
-    }
-  ]
-}
-```
-
-#### `POST /api/v1/sign-message`
-
-Create a message signing request (NEP-0413).
-
-**Request Body:**
-```json
-{
-  "message": "Hello, this is a test message",
-  "recipient": "myapp.com",
-  "nonce": "base64-encoded-32-byte-nonce",
-  "callbackUrl": "myapp://wallet-callback",
-  "state": "optional-state-for-auth",
-  "metadata": {
-    "appName": "MyApp",
-    "description": "Sign message for authentication",
-    "iconUrl": "https://myapp.com/icon.png"
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "requestId": "unique-request-id",
-  "deeplinkUrl": "nearwallet://sign-message?requestId=unique-request-id&callback=myapp://wallet-callback",
-  "expiresAt": 1645123456789
-}
-```
-
-#### `GET /api/v1/sign-message/{requestId}`
-
-Retrieve signed message data.
-
-**Response:**
-```json
-{
-  "status": "approved",
-  "accountId": "user.near",
-  "publicKey": "ed25519:6TupyNrcHGTt5XRLmHTc2KGaiSbjhQi1KHtCXTgbcr4Y",
-  "signature": "base64-encoded-signature",
-  "state": "optional-state"
-}
-```
-
-#### `POST /api/v1/meta-transaction`
-
-Create a meta transaction request using DelegateAction (NEP-0366).
-
-**Request Body:**
-```json
-{
-  "delegateAction": {
-    "senderId": "user.near",
-    "receiverId": "relayer.near",
-    "actions": [
-      {
-        "type": "FunctionCall",
-        "params": {
-          "methodName": "transfer",
-          "args": "base64-encoded-args",
-          "gas": "300000000000000",
-          "deposit": "0"
-        }
-      }
-    ],
-    "nonce": 123456,
-    "maxBlockHeight": 12345678,
-    "publicKey": "ed25519:6TupyNrcHGTt5XRLmHTc2KGaiSbjhQi1KHtCXTgbcr4Y"
-  },
-  "signature": "base64-encoded-signature",
-  "callbackUrl": "myapp://wallet-callback",
-  "executeTransaction": true,
-  "metadata": {
-    "appName": "MyApp",
-    "description": "Meta transaction for gasless transfer",
-    "iconUrl": "https://myapp.com/icon.png"
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "requestId": "unique-request-id",
-  "deeplinkUrl": "nearwallet://meta-transaction?requestId=unique-request-id&callback=myapp://wallet-callback",
-  "expiresAt": 1645123456789
-}
-```
-
-#### `GET /api/v1/meta-transaction/{requestId}`
-
-Retrieve meta transaction result.
-
-**Response:**
-```json
-{
-  "status": "approved",
-  "signedDelegateAction": "base64-encoded-signed-delegate-action",
-  "transactionHash": "blockchain-transaction-hash",
-  "blockHeight": 12345678
-}
-```
-
-#### `GET /api/v1/sign-in-transaction/{requestId}`
-
-Retrieve sign-in transaction result.
-
-**Response:**
-```json
-{
-  "status": "approved",
-  "signedTransaction": "base64-encoded-signed-transaction",
-  "transactionHash": "blockchain-transaction-hash",
-  "blockHeight": 12345678
-}
-```
