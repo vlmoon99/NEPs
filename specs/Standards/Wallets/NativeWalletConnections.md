@@ -40,136 +40,190 @@ The connection flow consists of five simple steps:
 - **Request ID Based**: All operations reference a unique request ID
 - **Wallet Backend Responsibility**: Wallet providers maintain their own backend infrastructure
 
-### Methods
 
-#### `signTransaction`
+### Flows
 
-Sign a regular NEAR transaction with optional execution.
+#### Figure 1: Transaction Signing Flow
 
-```ts
-interface SignTransactionParams {
-  transaction: Uint8Array;
-  callbackUrl: string;
-  // Optional: if true, wallet will execute the transaction, otherwise return signed transaction
-  executeTransaction?: boolean;
-  metadata?: {
-    appName: string;
-    description?: string;
-    iconUrl?: string;
-  };
-}
-
-interface SignTransactionResponse {
-  requestId: string;
-  deeplinkUrl: string;
-}
-
-interface SignTransactionResult {
-  status: 'pending' | 'approved' | 'rejected';
-  signedTransaction?: Uint8Array; // Encoded SignedTransaction
-  transactionHash?: string; // If wallet executed the transaction
-  blockHeight?: number; // If wallet executed the transaction
-  error?: string;
-}
+```
+     +--------+                               +---------------+
+     |        |--(A)- Sign Transaction ------>|   Wallet      |
+     |        |         Request               |   Backend     |
+     |        |                               |               |
+     |        |<-(B)-- Request ID & ----------|               |
+     |        |      Deeplink URL             |               |
+     |        |                               |               |
+     |        |                               +---------------+
+     |        |                                       |
+     |        |                                       |
+     |        |                               +---------------+
+     |        |--(C)-- Deeplink Redirect ---->|   Native      |
+     |        |                               |   Wallet      |
+     |        |<-(D)-- User Approval/Reject --|               |
+     |        |                               |               |
+     |        |                               +---------------+
+     |        |                                       |
+     |        |                                       |
+     |        |                               +---------------+
+     |        |--(E)-- Callback Redirect ---->|   App         |
+     |        |         with Request ID       |               |
+     |        |                               |               |
+     |        |--(F)-- GET Request ---------->|   Wallet      |
+     |        |         by Request ID         |   Backend     |
+     |        |                               |               |
+     |        |<-(G)-- Signed Transaction ----|               |
+     +--------+                               +---------------+
 ```
 
-#### `getAccounts`
 
-Retrieve available accounts from wallet (for transaction construction).
+#### Figure 2: "Trust Me" Authentication Flow
 
-```ts
-interface GetAccountsParams {
-  callbackUrl: string;
-  metadata?: {
-    appName: string;
-    description?: string;
-    iconUrl?: string;
-  };
-}
-
-interface GetAccountsResponse {
-  requestId: string;
-  deeplinkUrl: string;
-}
-
-interface GetAccountsResult {
-  accounts: Array<Account>;
-}
-
-interface Account {
-  accountId: string;
-  publicKey: string;
-}
+```
+     +--------+                               +---------------+
+     |        |--(A)- Enter Account Name ---->|   App         |
+     |        |         (No Wallet Redirect)  |               |
+     |        |                               |               |
+     |        |--(B)- Use Account Name ------>|   Smart       |
+     |        |         for Contract Calls    |   Contract    |
+     |        |                               |               |
+     |        |<-(C)-- Contract Response -----|               |
+     +--------+                               +---------------+
 ```
 
-#### `signMessage`
 
-Sign a message for a specific recipient using the user's NEAR account (NEP-0413).
 
-```ts
-interface SignMessageParams {
-  message: string; // The message to be signed
-  recipient: string; // The recipient to whom the message is destined (e.g. "alice.near" or "myapp.com")
-  nonce: Uint8Array; // A 32-byte nonce that ensures message uniqueness
-  callbackUrl?: string;
-  state?: string;
-  metadata?: {
-    appName: string;
-    description?: string;
-    iconUrl?: string;
-  };
-}
+#### Figure 3: Message Signing Authentication Flow (NEP-413)
 
-interface SignMessageResponse {
-  requestId: string;
-  deeplinkUrl: string;
-}
-
-interface SignedMessage {
-  accountId: string; 
-  publicKey: string; 
-  signature: string;
-  state?: string; 
-}
+```
+     +--------+                               +---------------+
+     |        |--(A)- Sign Message ---------->|   Wallet      |
+     |        |         Request               |   Backend     |
+     |        |                               |               |
+     |        |<-(B)-- Request ID & ----------|               |
+     |        |      Deeplink URL             |               |
+     |        |                               |               |
+     |        |                               +---------------+
+     |        |                                       |
+     |        |                                       |
+     |        |                               +---------------+
+     |        |--(C)-- Deeplink Redirect ---->|   Native      |
+     |        |                               |   Wallet      |
+     |        |<-(D)-- User Message Review ---|               |
+     |        |      & Approval               |               |
+     |        |                               |               |
+     |        |                               +---------------+
+     |        |                                       |
+     |        |                                       |
+     |        |                               +---------------+
+     |        |--(E)-- Callback Redirect ---->|   App         |
+     |        |         with Request ID       |               |
+     |        |                               |               |
+     |        |--(F)-- GET Request ---------->|   Wallet      |
+     |        |         by Request ID         |   Backend     |
+     |        |                               |               |
+     |        |<-(G)-- Signed Message --------|               |
+     +--------+                               +---------------+
 ```
 
-#### `signMetaTransaction`
+#### Figure 4: Access Key Management Flow
 
-Sign a meta transaction using DelegateAction (NEP-0366).
+```
+     +--------+                               +---------------+
+     |        |--(A)- Add/Remove Access Key ->|   Wallet      |
+     |        |         Request               |   Backend     |
+     |        |                               |               |
+     |        |<-(B)-- Request ID & ----------|               |
+     |        |      Deeplink URL             |               |
+     |        |                               |               |
+     |        |                               +---------------+
+     |        |                                       |
+     |        |                                       |
+     |        |                               +---------------+
+     |        |--(C)-- Deeplink Redirect ---->|   Native      |
+     |        |                               |   Wallet      |
+     |        |<-(D)-- User Approval & -------|               |
+     |        |      Key Management           |               |
+     |        |                               |               |
+     |        |                               +---------------+
+     |        |                                       |
+     |        |                                       |
+     |        |                               +---------------+
+     |        |--(E)-- Callback Redirect ---->|   App         |
+     |        |         with Request ID       |               |
+     |        |                               |               |
+     |        |--(F)-- GET Request ---------->|   Wallet      |
+     |        |         by Request ID         |   Backend     |
+     |        |                               |               |
+     |        |<-(G)-- Transaction Hash ------|               |
+     +--------+                               +---------------+
+```
 
-```ts
-interface SignMetaTransactionParams {
-  delegateAction: {
-    senderId: string;
-    receiverId: string; 
-    actions: Array<Action>;
-    nonce: number;
-    maxBlockHeight: number;
-    publicKey: string;
-  };
-  signature: string;
-  callbackUrl: string;
-  // Optional: if true, wallet will execute the transaction, otherwise return signed transaction
-  executeTransaction?: boolean;
-  metadata?: {
-    appName: string;
-    description?: string;
-    iconUrl?: string;
-  };
-}
+#### Figure 5: Full Access Key Addition Flow (Dangerous)
 
-interface SignMetaTransactionResponse {
-  requestId: string;
-  deeplinkUrl: string;
-}
+```
+     +--------+                               +---------------+
+     |        |--(A)- Add Full Access Key --->|   Wallet      |
+     |        |         Request               |   Backend     |
+     |        |                               |               |
+     |        |<-(B)-- Request ID & ----------|               |
+     |        |      Deeplink URL             |               |
+     |        |                               |               |
+     |        |                               +---------------+
+     |        |                                       |
+     |        |                                       |
+     |        |                               +---------------+
+     |        |--(C)-- Deeplink Redirect ---->|   Native      |
+     |        |                               |   Wallet      |
+     |        |<-(D)-- Multiple User -------->|               |
+     |        |      Confirmations            |               |
+     |        |                               |               |
+     |        |                               +---------------+
+     |        |                                       |
+     |        |                                       |
+     |        |                               +---------------+
+     |        |--(E)-- Callback Redirect ---->|   App         |
+     |        |         with Request ID       |               |
+     |        |                               |               |
+     |        |--(F)-- GET Request ---------->|   Wallet      |
+     |        |         by Request ID         |   Backend     |
+     |        |                               |               |
+     |        |<-(G)-- Transaction Hash ------|               |
+     +--------+                               +---------------+
+```
 
-interface SignMetaTransactionResult {
-  status: 'pending' | 'approved' | 'rejected';
-  signedDelegateAction?: Uint8Array;
-  transactionHash?: string; // If wallet executed the transaction
-  blockHeight?: number; // If wallet executed the transaction
-  error?: string;
-}
+
+
+#### Figure 6: Meta Transaction Flow
+
+```
+     +--------+                               +---------------+
+     |        |--(A)- Sign Meta Transaction ->|   Wallet      |
+     |        |         Request               |   Backend     |
+     |        |                               |               |
+     |        |<-(B)-- Request ID & ----------|               |
+     |        |      Deeplink URL             |               |
+     |        |                               |               |
+     |        |                               +---------------+
+     |        |                                       |
+     |        |                                       |
+     |        |                               +---------------+
+     |        |--(C)-- Deeplink Redirect ---->|   Native      |
+     |        |                               |   Wallet      |
+     |        |<-(D)-- User Approval & -------|               |
+     |        |      Transaction Execution    |               |
+     |        |                               |               |
+     |        |                               +---------------+
+     |        |                                       |
+     |        |                                       |
+     |        |                               +---------------+
+     |        |--(E)-- Callback Redirect ---->|   App         |
+     |        |         with Request ID       |               |
+     |        |                               |               |
+     |        |--(F)-- GET Request ---------->|   Wallet      |
+     |        |         by Request ID         |   Backend     |
+     |        |                               |               |
+     |        |<-(G)-- Transaction Hash ------|               |
+     +--------+                               +---------------+
 ```
 
 ### Wallet Backend Requirements
@@ -212,42 +266,6 @@ Wallet providers MUST implement a simple backend with these endpoints:
 }
 ```
 
-#### `POST /api/v1/accounts`
-
-**Request Body:**
-```json
-{
-  "callbackUrl": "myapp://wallet-callback",
-  "metadata": {
-    "appName": "MyApp",
-    "description": "Get available accounts",
-    "iconUrl": "https://myapp.com/icon.png"
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "requestId": "unique-request-id",
-  "deeplinkUrl": "nearwallet://native-bridge?requestId=unique-request-id&callback=myapp://wallet-callback"
-}
-```
-
-#### `GET /api/v1/accounts/{requestId}`
-
-**Response:**
-```json
-{
-  "accounts": [
-    {
-      "accountId": "user.near",
-      "publicKey": "ed25519:..."
-    }
-  ]
-}
-```
-
 #### `POST /api/v1/sign-message`
 
 **Request Body:**
@@ -284,6 +302,82 @@ Wallet providers MUST implement a simple backend with these endpoints:
   "publicKey": "ed25519:6TupyNrcHGTt5XRLmHTc2KGaiSbjhQi1KHtCXTgbcr4Y",
   "signature": "base64-encoded-signature",
   "state": "optional-state"
+}
+```
+
+#### `POST /api/v1/add-access-key`
+
+**Request Body:**
+```json
+{
+  "accountId": "user.near",
+  "publicKey": "ed25519:...",
+  "permissions": {
+    "type": "FunctionCall",
+    "receiverId": "contract.near",
+    "methodNames": ["ft_transfer", "ft_balance_of"],
+    "allowance": "1000000000000000000000000"
+  },
+  "callbackUrl": "myapp://wallet-callback",
+  "metadata": {
+    "appName": "MyApp",
+    "description": "Add function-call access key for contract interactions",
+    "iconUrl": "https://myapp.com/icon.png"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "requestId": "unique-request-id",
+  "deeplinkUrl": "nearwallet://native-bridge?requestId=unique-request-id&callback=myapp://wallet-callback"
+}
+```
+
+#### `GET /api/v1/add-access-key/{requestId}`
+
+**Response:**
+```json
+{
+  "status": "approved",
+  "transactionHash": "blockchain-transaction-hash",
+  "blockHeight": 12345678
+}
+```
+
+#### `POST /api/v1/remove-access-key`
+
+**Request Body:**
+```json
+{
+  "accountId": "user.near",
+  "publicKey": "ed25519:...",
+  "callbackUrl": "myapp://wallet-callback",
+  "metadata": {
+    "appName": "MyApp",
+    "description": "Remove function-call access key",
+    "iconUrl": "https://myapp.com/icon.png"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "requestId": "unique-request-id",
+  "deeplinkUrl": "nearwallet://native-bridge?requestId=unique-request-id&callback=myapp://wallet-callback"
+}
+```
+
+#### `GET /api/v1/remove-access-key/{requestId}`
+
+**Response:**
+```json
+{
+  "status": "approved",
+  "transactionHash": "blockchain-transaction-hash",
+  "blockHeight": 12345678
 }
 ```
 
@@ -340,4 +434,3 @@ Wallet providers MUST implement a simple backend with these endpoints:
   "blockHeight": 12345678
 }
 ```
-
