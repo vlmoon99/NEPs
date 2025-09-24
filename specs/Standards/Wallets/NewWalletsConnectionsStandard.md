@@ -42,6 +42,9 @@ interface EnhancedSignInParams extends SignInParams {
 2. **Seamless Relay Establishment** 
    - Wallet provider generates secure session identifier
    - Connection process becomes invisible to user - no QR codes or manual steps required
+
+## Simplified Connection Flow
+![Connection Flow](./diagrams/connection_flow.svg)
    - **Mobile Connection Scenario** (two variants):
      - **Web App → Native Wallet**: 
        - Push notification automatically sent to user's registered mobile device/tablet
@@ -78,6 +81,13 @@ interface EnhancedSignInParams extends SignInParams {
    - Transactions requiring FullAccess keys trigger notifications to mobile wallet
    - User approves transactions on mobile device
    - FunctionCall access keys used directly by dApp for gas-only transactions
+
+## Full Web dApp Connection Flow & Tx Execution Flow
+![Web dApp Flow](./diagrams/webdApp_flow.svg)
+
+
+## Full Mobile dApp Connection Flow & Tx Execution Flow
+![Mobile dApp Flow](./diagrams/nativedApp_flow.svg)
 
 ### Technical Requirements
 
