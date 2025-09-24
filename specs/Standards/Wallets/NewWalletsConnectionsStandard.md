@@ -1,5 +1,3 @@
-# Universal Wallet Collector: Enhanced Connection Standards
-
 ## Summary
 
 Enhanced wallet connection standards that extend the existing NEAR Injected Wallet and Bridge Wallet specifications to support universal access patterns, including native mobile integration and simplified authentication mechanisms for mass adoption.
@@ -21,7 +19,7 @@ This approach extends the existing wallet connection flow to provide seamless in
 ### Core Concept
 Wallet providers must offer dual connection options:
 1. **Direct Connection**: Traditional web-based or injected wallet connection
-2. **Cross-Platform Connection**: Mobile-native wallet approval for web/desktop dApps
+2. **Cross-Platform Connection**: Mobile-native wallet/Remote Web approval for web/native dApps
 
 ### Flow Architecture
 
@@ -31,7 +29,7 @@ The standard `signIn` method is extended to include platform preference:
 ```typescript
 interface EnhancedSignInParams extends SignInParams {
   connectionType: 'direct' | 'cross-platform';
-  platformPreference?: 'web' | 'mobile';
+  platformPreference?: 'web' | 'native';
 }
 ```
 
@@ -39,7 +37,7 @@ interface EnhancedSignInParams extends SignInParams {
 1. **Connection Initiation**
    - User visits web dApp without wallet extension installed
    - dApp detects available wallet providers and their platform capabilities
-   - User selects preferred wallet and chooses "mobile connection" option or "web"
+   - User selects preferred wallet and chooses "native connection" option or "web"
 
 2. **Seamless Relay Establishment** 
    - Wallet provider generates secure session identifier
