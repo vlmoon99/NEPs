@@ -44,7 +44,7 @@ interface EnhancedSignInParams extends SignInParams {
    - Connection process becomes invisible to user - no QR codes or manual steps required
 
 ## Simplified Connection Flow
-![Connection Flow](./diagrams/connection_flow.svg)
+![Connection Flow](./diagrams/simplified_connection_flow.svg)
    - **Mobile Connection Scenario** (two variants):
      - **Web App → Native Wallet**: 
        - Push notification automatically sent to user's registered mobile device/tablet
